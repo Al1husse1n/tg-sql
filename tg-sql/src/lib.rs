@@ -1,4 +1,6 @@
- #[derive(Debug, PartialEq)]
+ use std::collections::{HashMap}; 
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RecordKey{
     key: String
 }
@@ -21,7 +23,7 @@ impl RecordKey{
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Record{
     key: RecordKey,
     value: String
@@ -38,6 +40,26 @@ impl Record{
     
     pub fn value(&self) -> &str{
         &self.value
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Store{
+    records: HashMap<RecordKey, String>
+}
+
+impl Store{
+    pub fn new() -> Store{
+        Store{records: HashMap::new()}
+    }
+
+    pub fn set(&mut self, key:RecordKey, value: String){
+        self.records.insert(key, value);
+    }
+
+    pub fn get(&self, key:&RecordKey) -> Option<&str>{
+        let x = self.records.get(key);
+        x.map(|key| key.as_str())
     }
 }
 
