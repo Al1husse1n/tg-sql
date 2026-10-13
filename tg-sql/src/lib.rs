@@ -136,6 +136,34 @@ mod tests {
         assert!(s.contains("value"), "got: {s}");
     }
 
+    #[test]
+    fn set_inserts_value_retrievable_by_get() {
+        let mut store = Store::new();
+        let key = RecordKey::new("user_id").unwrap();
+
+        store.set(key.clone(), "42".to_string());
+
+        assert_eq!(store.get(&key), Some("42"));
+    }
+
+    #[test]
+    fn set_overwrites_value_for_existing_key() {
+        let mut store = Store::new();
+        let key = RecordKey::new("user_id").unwrap();
+
+        store.set(key.clone(), "42".to_string());
+        store.set(key.clone(), "43".to_string());
+
+        assert_eq!(store.get(&key), Some("43"));
+    }
+
+    #[test]
+    fn get_returns_none_for_missing_key() {
+        let store = Store::new();
+        let key = RecordKey::new("missing").unwrap();
+
+        assert_eq!(store.get(&key), None);
+    }
 
    
 }
