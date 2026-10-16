@@ -1,18 +1,21 @@
  use std::collections::{HashMap}; 
-use crate::record::RecordKey;
+use crate::record;
+use crate::record::(RecordKey, Record);
+use crate::storage::sqlite::SqliteStorage;
  
 #[derive(Debug, Clone, PartialEq)]
 pub struct Store{
-    records: HashMap<RecordKey, String>
+    records: SqliteStorage,
 }
 
 impl Store{
-    pub fn new() -> Store{
-        Store{records: HashMap::new()}
+    pub fn open(path:&str) -> Result<Self>{
+        let sqlite_storage = SqliteStorage::open(path)?;
+        Ok(Store{records: sqlite_storage})
     }
 
-    pub fn set(&mut self, key:RecordKey, value: String){
-        self.records.insert(key, value);
+    pub fn set(&self, record: &Record) -> Result<usize>{
+        self.records.set(record)
     }
 
     pub fn get(&self, key:&RecordKey) -> Option<&str>{
