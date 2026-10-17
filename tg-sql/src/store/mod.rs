@@ -1,9 +1,7 @@
- use std::collections::{HashMap}; 
-use crate::record;
-use crate::record::(RecordKey, Record);
+use crate::record::{Record, RecordKey};
 use crate::storage::sqlite::SqliteStorage;
+use rusqlite::Result;
  
-#[derive(Debug, Clone, PartialEq)]
 pub struct Store{
     records: SqliteStorage,
 }
@@ -18,90 +16,123 @@ impl Store{
         self.records.set(record)
     }
 
-    pub fn get(&self, key:&RecordKey) -> Option<&str>{
-        let x = self.records.get(key);
-        x.map(|key| key.as_str())
+    pub fn get(&self, key:&RecordKey) -> Result<Option<String>>{
+        self.records.get(key)
     }
 
-    pub fn delete(&mut self, key:&RecordKey) -> Option<String>{
-        self.records.remove(key)
+    pub fn delete(&self, key:&RecordKey) -> Result<bool>{
+        self.records.delete(key)
     }
 
-    pub fn contains_key(&self, key:&RecordKey) -> bool{
+    pub fn contains_key(&self, key:&RecordKey) -> Result<bool>{
         self.records.contains_key(key)
     }
 
-    pub fn len(&self) -> usize{
+
+    pub fn len(&self) -> Result<usize>{
         self.records.len()
     }
 
-    pub  fn is_empty(&self)  -> bool{
+    pub  fn is_empty(&self)  -> Result<bool>{
         self.records.is_empty()
     }
+
 
 }
 
 #[cfg(test)]
 mod tests {
     use super::Store;
-    use crate::record::RecordKey;
+    use crate::record::{Record, RecordKey};
+    use rusqlite::Result;
+    use tempfile::NamedTempFile;
 
     #[test]
-    fn set_inserts_value_retrievable_by_get() {
-        let mut store = Store::new();
-        let key = RecordKey::new("user_id").unwrap();
+    fn set_inserts_value_retrievable_by_get() -> Result<()> {
+        let store = Store::open(":memory:")?;
+        let key = RecordKey::new("user_id").expect("test key should be valid");
+        let record = Record::new(key.clone(), "42".to_string());
 
-        store.set(key.clone(), "42".to_string());
+        store.set(&record)?;
 
-        assert_eq!(store.get(&key), Some("42"));
+        assert_eq!(store.get(&key)?, Some("42".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn set_overwrites_value_for_existing_key() {
-        let mut store = Store::new();
-        let key = RecordKey::new("user_id").unwrap();
+    fn set_overwrites_value_for_existing_key() -> Result<()> {
+        let store = Store::open(":memory:")?;
+        let key = RecordKey::new("user_id").expect("test key should be valid");
+        let first_record = Record::new(key.clone(), "42".to_string());
+        let updated_record = Record::new(key.clone(), "43".to_string());
 
-        store.set(key.clone(), "42".to_string());
-        store.set(key.clone(), "43".to_string());
+        store.set(&first_record)?;
+        store.set(&updated_record)?;
 
-        assert_eq!(store.get(&key), Some("43"));
+        assert_eq!(store.get(&key)?, Some("43".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn get_returns_none_for_missing_key() {
-        let store = Store::new();
-        let key = RecordKey::new("missing").unwrap();
+    fn get_returns_none_for_missing_key() -> Result<()> {
+        let store = Store::open(":memory:")?;
+        let key = RecordKey::new("missing").expect("test key should be valid");
 
-        assert_eq!(store.get(&key), None);
+        assert_eq!(store.get(&key)?, None);
+        Ok(())
     }
 
     #[test]
-    fn length_and_membership_track_insertions() {
-        let mut store = Store::new();
-        let key = RecordKey::new("user_id").unwrap();
+    fn length_and_membership_track_insertions() -> Result<()> {
+        let store = Store::open(":memory:")?;
+        let key = RecordKey::new("user_id").expect("test key should be valid");
+        let record = Record::new(key.clone(), "42".to_string());
 
-        assert!(store.is_empty());
-        assert_eq!(store.len(), 0);
-        assert!(!store.contains_key(&key));
+        assert!(store.is_empty()?);
+        assert_eq!(store.len()?, 0);
+        assert!(!store.contains_key(&key)?);
 
-        store.set(key.clone(), "42".to_string());
+        store.set(&record)?;
 
-        assert!(!store.is_empty());
-        assert_eq!(store.len(), 1);
-        assert!(store.contains_key(&key));
+        assert!(!store.is_empty()?);
+        assert_eq!(store.len()?, 1);
+        assert!(store.contains_key(&key)?);
+        Ok(())
     }
 
     #[test]
-    fn delete_returns_value_and_removes_key() {
-        let mut store = Store::new();
-        let key = RecordKey::new("user_id").unwrap();
-        store.set(key.clone(), "42".to_string());
+    fn delete_removes_key_and_reports_whether_it_existed() -> Result<()> {
+        let store = Store::open(":memory:")?;
+        let key = RecordKey::new("user_id").expect("test key should be valid");
+        let record = Record::new(key.clone(), "42".to_string());
+        store.set(&record)?;
 
-        assert_eq!(store.delete(&key), Some("42".to_string()));
-        assert_eq!(store.get(&key), None);
-        assert!(!store.contains_key(&key));
-        assert_eq!(store.delete(&key), None);
-        assert!(store.is_empty());
-        assert_eq!(store.len(), 0);
+        assert!(store.delete(&key)?);
+        assert_eq!(store.get(&key)?, None);
+        assert!(!store.contains_key(&key)?);
+        assert!(!store.delete(&key)?);
+        assert!(store.is_empty()?);
+        assert_eq!(store.len()?, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn record_persists_after_reopening_database() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let db_file = NamedTempFile::new()?;
+        let db_path = db_file.path().to_str().expect("temporary path should be valid UTF-8");
+        let key = RecordKey::new("user_id").expect("test key should be valid");
+        let record = Record::new(key.clone(), "42".to_string());
+
+        {
+            let store = Store::open(db_path)?;
+            store.set(&record)?;
+        }
+
+        let reopened_store = Store::open(db_path)?;
+        assert_eq!(reopened_store.get(&key)?, Some("42".to_string()));
+        drop(reopened_store);
+
+        db_file.close()?;
+        Ok(())
     }
 }
