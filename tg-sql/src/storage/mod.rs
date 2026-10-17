@@ -5,6 +5,6 @@ pub trait Storage{
     fn get(&self, key: &RecordKey) -> Result<Option<String>, StoreError>;
     fn delete(&self, key:&RecordKey) -> Result<bool, StoreError>;
     fn contains_key(&self, key:&RecordKey) -> Result<bool, StoreError>;
-    fn len(&self) -> Result<i64, StoreError>;
+    fn len(&self) -> Result<usize, StoreError>;
     fn is_empty(&self) -> Result<bool, StoreError>;
 }
