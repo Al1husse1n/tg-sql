@@ -58,6 +58,34 @@ mod tests {
     use crate::record::{Record, RecordKey};
 
     #[test]
+    fn get_returns_value_for_existing_key_and_none_for_missing_key() -> rusqlite::Result<()> {
+        let storage = SqliteStorage::open(":memory:")?;
+        let existing_key = RecordKey::new("user_id").expect("test key should be valid");
+        let missing_key = RecordKey::new("missing").expect("test key should be valid");
+        let record = Record::new(existing_key.clone(), "42".to_string());
+        storage.set(&record)?;
+
+        assert_eq!(storage.get(&existing_key)?, Some("42".to_string()));
+        assert_eq!(storage.get(&missing_key)?, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn delete_removes_existing_key_and_returns_false_for_missing_key() -> rusqlite::Result<()> {
+        let storage = SqliteStorage::open(":memory:")?;
+        let key = RecordKey::new("user_id").expect("test key should be valid");
+        let record = Record::new(key.clone(), "42".to_string());
+        storage.set(&record)?;
+
+        assert!(storage.delete(&key)?);
+        assert_eq!(storage.get(&key)?, None);
+        assert!(!storage.delete(&key)?);
+
+        Ok(())
+    }
+
+    #[test]
     fn set_inserts_and_updates_record() -> rusqlite::Result<()> {
         let storage = SqliteStorage::open(":memory:")?;
         let key = RecordKey::new("user_id").expect("test key should be valid");
