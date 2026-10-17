@@ -50,6 +50,35 @@ impl SqliteStorage{
 
     }
 
+    pub fn contains_key(&self, key:&RecordKey) -> Result<bool>{
+        let key = key.as_str();
+        Ok(
+            self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM records WHERE key = ?1)",
+                params![key],
+                |row| row.get(0),
+            )?
+        )
+    }
+
+    pub fn len(&self) -> Result<usize> {
+        let count: i64 = self.connection.query_row(
+            "SELECT COUNT(*) FROM records",
+            [],
+            |row| row.get(0),
+        )?;
+        usize::try_from(count)
+            .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, count))
+    }
+
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT NOT EXISTS(SELECT 1 FROM records)",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
 }
 
 #[cfg(test)]
