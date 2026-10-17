@@ -1,5 +1,5 @@
-use rusqlite::{Connection, Result, params};
-use crate::record::Record;
+use rusqlite::{Connection, Result, params, OptionalExtension};
+use crate::record::{Record, RecordKey};
 
 pub struct SqliteStorage{
     connection: Connection,
@@ -28,6 +28,26 @@ impl SqliteStorage{
             params![key, value]
         );
         exec
+    }
+
+    pub fn get(&self, key: &RecordKey) -> Result<Option<String>>{
+        let key = key.as_str();
+        Ok(self.connection.query_row(
+            "SELECT value FROM records WHERE key = ?1",
+            [key],
+            |row| row.get(0)
+        ).optional()?)
+    }
+
+    pub fn delete(&self, key:&RecordKey) -> Result<bool>{
+        let key = key.as_str();
+        let rows_affected = self.connection.execute(
+            "DELETE FROM records WHERE key = ?1",
+            params![key],
+        )?;
+
+        Ok(rows_affected > 0)
+
     }
 
 }
