@@ -25,7 +25,7 @@ impl SqliteStorage{
 
 
 impl Storage for SqliteStorage{
-    fn set(&self, record: &Record) -> Result<usize, StoreError>{
+    async fn set(&self, record: &Record) -> Result<usize, StoreError>{
         let key = record.key().as_str();  
         let value = record.value();
         let exec = self.connection.execute(
@@ -35,7 +35,7 @@ impl Storage for SqliteStorage{
         Ok(exec)
     }
 
-    fn get(&self, key: &RecordKey) -> Result<Option<String>, StoreError>{
+    async fn get(&self, key: &RecordKey) -> Result<Option<String>, StoreError>{
         let key = key.as_str();
         Ok(self.connection.query_row(
             "SELECT value FROM records WHERE key = ?1",
@@ -44,7 +44,7 @@ impl Storage for SqliteStorage{
         ).optional()?)
     }
 
-    fn delete(&self, key:&RecordKey) -> Result<bool, StoreError>{
+    async fn delete(&self, key:&RecordKey) -> Result<bool, StoreError>{
         let key = key.as_str();
         let rows_affected = self.connection.execute(
             "DELETE FROM records WHERE key = ?1",
@@ -55,7 +55,7 @@ impl Storage for SqliteStorage{
 
     }
 
-    fn contains_key(&self, key:&RecordKey) -> Result<bool, StoreError>{
+    async fn contains_key(&self, key:&RecordKey) -> Result<bool, StoreError>{
         let key = key.as_str();
         Ok(
             self.connection.query_row(
@@ -66,7 +66,7 @@ impl Storage for SqliteStorage{
         )
     }
 
-    fn len(&self) -> Result<usize, StoreError> {
+    async fn len(&self) -> Result<usize, StoreError> {
         let count:i64 = self.connection.query_row(
             "SELECT COUNT(*) FROM records",
             [],
@@ -78,7 +78,7 @@ impl Storage for SqliteStorage{
         Ok(count)
     }
 
-    fn is_empty(&self) -> Result<bool, StoreError> {
+    async fn is_empty(&self) -> Result<bool, StoreError> {
         Ok(self.connection.query_row(
             "SELECT NOT EXISTS(SELECT 1 FROM records)",
             [],
